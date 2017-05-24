@@ -143,9 +143,6 @@ int main()
 	uint64_t key = 0b0001001100110100010101110111100110011011101111001101111111110001;
 	uint64_t data = 0b0101101001000111101000000001011100001111011101110011010110100101;
 
-	printf("Base key:\nX: ");
-	printbits(key);
-
 	uint64_t a_key[16];
 	a_key[0] = key;
 	uint64_t next_key;
@@ -186,8 +183,8 @@ uint64_t* generate_keys(uint64_t basekey)
 	uint64_t c[17];
 
 	const uint64_t mask = 0b000000000000000000000000000111111111111111111111111111110000000;
-	d[0] = (first & mask) << 28;
-	c[0] = ((first >> 28) & mask) << 28;
+	d[0] = (first & mask) << 28; //right half
+	c[0] = ((first >> 28) & mask) << 28; //left half
 	
 	for (int i = 1; i < 17; i++)
 	{
@@ -206,6 +203,17 @@ uint64_t* generate_keys(uint64_t basekey)
 		if (shifts == 2)
 			if (d[i - 1] & (uint64_t)1 << 62)
 				d[i] += (uint64_t)1 << 36;
+
+		
+		keys[i] = c[i] | (d[i] >> 28);
+		uint64_t tmp = 0;
+		for (int j = 0; j < 48; j++)
+		{
+			if (keys[i] & ((uint64_t)1 << (63 - (PC2[j] - 1))))
+				tmp += ((uint64_t)1 << 63 - j);
+		}
+
+		keys[i] = tmp;
 	}
 	return keys;
 }
