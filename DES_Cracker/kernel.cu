@@ -130,43 +130,21 @@ const int Pbox[32] = {
 	19, 13, 30,  6, 22, 11,  4, 25
 };
 
-void addbit(uint64_t *block, uint64_t from,
-	int position_from, int position_to);
-void key_schedule(uint64_t* key, uint64_t* next_key, int round);
 void printbits(uint64_t v, int start = 0, int end = 64);
-void Permutation(uint64_t* data, bool initial);
-void rounds(uint64_t *data, uint64_t key);
 uint64_t* generate_keys(uint64_t basekey);
+uint64_t permutate_block(uint64_t block, bool initial);
+uint64_t jechanka(uint64_t permutated);
+uint64_t expand(uint64_t val);
+uint64_t calculate_sboxes(uint64_t val);
 
 int main()
 {
 	uint64_t key = 0b0001001100110100010101110111100110011011101111001101111111110001;
-	uint64_t data = 0b0101101001000111101000000001011100001111011101110011010110100101;
+	uint64_t msg = 0b0000000100100011010001010110011110001001101010111100110111101111;
 
-	uint64_t a_key[16];
-	a_key[0] = key;
-	uint64_t next_key;
-
-	/*for (int ii = 0; ii < 16; ii++)
-	{
-		key_schedule(&a_key[ii], &next_key, ii);
-		if (ii != 15)
-			a_key[ii + 1] = next_key;
-		
-		printf("%d: ", ii);
-		printbits(a_key[ii], 56);
-	}*/
-
-	generate_keys(key);
-
+	uint64_t* keys = generate_keys(key);
+	jechanka(permutate_block(msg, true));
     return 0;
-}
-
-void addbit(uint64_t *block, uint64_t from,
-	int position_from, int position_to)
-{
-	if (((from << (position_from)) & FIRSTBIT) != 0)
-		*block += (FIRSTBIT >> position_to);
 }
 
 uint64_t* generate_keys(uint64_t basekey)
@@ -186,7 +164,7 @@ uint64_t* generate_keys(uint64_t basekey)
 	d[0] = (first & mask) << 28; //right half
 	c[0] = ((first >> 28) & mask) << 28; //left half
 	
-	for (int i = 1; i < 17; i++)
+	for (int i = 1; i <= 16; i++)
 	{
 		int shifts = Rotations[i-1];
 		c[i] = c[i - 1] << shifts;
@@ -218,70 +196,6 @@ uint64_t* generate_keys(uint64_t basekey)
 	return keys;
 }
 
-void key_schedule(uint64_t* key, uint64_t* next_key, int round)
-{
-	// Init
-	uint64_t key_left = 0;
-	uint64_t key_right = 0;
-
-	uint64_t key_left_temp = 0;
-	uint64_t key_right_temp = 0;
-
-	*next_key = 0; // Important !
-
-	// 1. First round => PC-1 : Permuted Choice 1
-	if (round == 0)
-	{
-		for (int ii = 0; ii < 56; ii++)
-		{
-			if (ii < 28)
-				addbit(&key_left, *key, PC1[ii] - 1, ii);
-			else
-				addbit(&key_right, *key, PC1[ii] - 1, ii % 28);
-		}
-	}
-	// 1'. Other rounds? => Seperate key into two key halves.
-	else
-	{
-		for (int ii = 0; ii < 56; ii++)
-		{
-			if (ii < 28)
-				addbit(&key_left, *key, ii, ii);
-			else
-				addbit(&key_right, *key, ii, ii % 28);
-		}
-	}
-
-	// 2. Rotations
-	key_left_temp = Rotations[round] == 1 ? FIRSTBIT : 0xC000000000000000;
-	key_right_temp = Rotations[round] == 1 ? FIRSTBIT : 0xC000000000000000;
-	key_left_temp = (key_left & key_left_temp) >> (28 - Rotations[round]);
-	key_right_temp = (key_right & key_right_temp) >> (28 - Rotations[round]);
-
-	key_left_temp += (key_left << Rotations[round]);
-	key_right_temp += (key_right << Rotations[round]);
-
-	// Combine the 2 keys into 1 (next_key)
-	// Next_key will be used for following rounds
-	for (int ii = 0; ii < 56; ii++)
-	{
-		if (ii < 28)
-			addbit(next_key, key_left_temp, ii, ii);
-		else
-			addbit(next_key, key_right_temp, (ii % 28), ii);
-	}
-
-	// 3. PC-2 : Permuted Choice 2
-	*key = 0;
-
-	for (int ii = 0; ii < 48; ii++)
-		addbit(key, *next_key, PC2[ii] - 1, ii);
-
-	// All Good!
-	// Use key in the DES rounds.
-	// Use next_key in this function again as the new key to change
-}
-
 void printbits(uint64_t v, int start, int end)
 {
 	for (int ii = start; ii < end; ii++)
@@ -294,70 +208,61 @@ void printbits(uint64_t v, int start, int end)
 	printf("\n");
 }
 
-
-void Permutation(uint64_t* data, bool initial)
+uint64_t permutate_block(uint64_t block, bool initial)
 {
-	uint64_t data_temp = 0;
-	for (int ii = 0; ii < 64; ii++)
+	uint64_t permutation = 0;
+	for (int i = 0; i < 64; i++)
 	{
 		if (initial)
-			addbit(&data_temp, *data, InitialPermutation[ii] - 1, ii);
-		else
-			addbit(&data_temp, *data, FinalPermutation[ii] - 1, ii);
+		{
+			if (block & ((uint64_t)1 << (63 - (InitialPermutation[i] - 1))))
+				permutation += ((uint64_t)1 << 63 - i);
+		}
+		else if (block & ((uint64_t)1 << (63 - (FinalPermutation[i] - 1))))
+			permutation += ((uint64_t)1 << 63 - i);	
 	}
-	*data = data_temp;
+
+	return permutation;
 }
 
-void rounds(uint64_t *data, uint64_t key)
+uint64_t jechanka(uint64_t permutated, uint64_t* keys)
 {
-	uint64_t right_block = 0;
-	uint64_t right_block_temp = 0;
+	uint64_t l[17], r[17];
+	uint64_t mask = 0b1111111111111111111111111111111100000000000000000000000000000000;
+	l[0] = permutated & mask;
+	r[0] = (permutated << 32) & mask;
 
-	// 1. Block expansion
-	for (int ii = 0; ii < 48; ii++)
-		addbit(&right_block, *data, (DesExpansion[ii] + 31), ii);
-
-	// 2. Xor with the key
-	right_block = right_block ^ key;
-
-	// 3. Substitution
-	int coordx, coordy;
-	uint64_t substitued;
-
-	for (int ii = 0; ii < 8; ii++)
+	for(int i = 1; i <= 16; i++)
 	{
-		coordx = ((right_block << 6 * ii) & FIRSTBIT) == FIRSTBIT ? 2 : 0;
-		if (((right_block << (6 * ii + 5)) & FIRSTBIT) == FIRSTBIT)
-			coordx++;
-
-		coordy = 0;
-		for (int jj = 1; jj < 5; jj++)
-		{
-			if (((right_block << (6 * ii + jj)) & FIRSTBIT) == FIRSTBIT)
-			{
-				coordy += 2 ^ (4 - jj);
-			}
-		}
-
-		substitued = DesSbox[ii][coordx][coordy];
-		substitued = substitued << (60 - (4 * ii));
-		right_block_temp += substitued;
+		l[i] = r[i - 1];
+		uint64_t v = keys[i] ^ expand(r[i - 1]);
 	}
+	return 0;
+}
 
-	// Right_block done
-	right_block = right_block_temp;
+uint64_t expand(uint64_t val)
+{
+	uint64_t res = 0;
+	for (int i = 0; i < 48; i++)
+	{
+		if (val & ((uint64_t)1 << (63 - (DesExpansion[i] - 1))))
+			res += ((uint64_t)1 << 63 - i);
+	}
+	return res;
+}
 
-	// 4. Permutation
-	right_block_temp = 0;
-
-	for (int ii = 0; ii < 32; ii++)
-		addbit(&right_block_temp, right_block, Pbox[ii] - 1, ii);
-
-	right_block = right_block_temp;
-
-	// 5. Xor with the left block
-	right_block = right_block ^ *data;
-
-	// Combine the new block and the right block
-	*data = (*data << 32) + (right_block >> 32);
+uint64_t calculate_sboxes(uint64_t val)
+{
+	uint64_t mask = 0b1111110000000000000000000000000000000000000000000000000000000000;
+	uint64_t middle_bits = 0b0000000000000000000000000000000000000000000000000000000000011110;
+	uint64_t ret = 0;
+	for(int i = 0; i < 8; i++)
+	{
+		uint64_t current = (val & (mask >> (6 * i))) >> (64 - 6 * (i + 1));
+		int column = (current & middle_bits) >> 1;
+		int row = ((current & (1 << 5)) >> 4) + (current & 1);
+		uint64_t val = DesSbox[i][row][column];
+		ret += val << (60 - 4 * i);
+	}
+	return ret;
 }
