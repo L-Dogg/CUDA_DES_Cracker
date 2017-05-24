@@ -133,7 +133,7 @@ const int Pbox[32] = {
 void printbits(uint64_t v, int start = 0, int end = 64);
 uint64_t* generate_keys(uint64_t basekey);
 uint64_t permutate_block(uint64_t block, bool initial);
-uint64_t jechanka(uint64_t permutated);
+uint64_t jechanka(uint64_t permutated, uint64_t* keys);
 uint64_t expand(uint64_t val);
 uint64_t calculate_sboxes(uint64_t val);
 
@@ -143,7 +143,7 @@ int main()
 	uint64_t msg = 0b0000000100100011010001010110011110001001101010111100110111101111;
 
 	uint64_t* keys = generate_keys(key);
-	jechanka(permutate_block(msg, true));
+	jechanka(permutate_block(msg, true), keys);
     return 0;
 }
 
@@ -235,9 +235,17 @@ uint64_t jechanka(uint64_t permutated, uint64_t* keys)
 	for(int i = 1; i <= 16; i++)
 	{
 		l[i] = r[i - 1];
-		uint64_t v = keys[i] ^ expand(r[i - 1]);
+		uint64_t v = calculate_sboxes(keys[i] ^ expand(r[i - 1]));
+		uint64_t res = 0;
+		for (int j = 0; i < 32; i++)
+		{
+			if (v & ((uint64_t)1 << (63 - (Pbox[j] - j))))
+				res += ((uint64_t)1 << 63 - j);
+		}
+		r[i] = l[i - 1] ^ res;
 	}
-	return 0;
+
+	return permutate_block(r[16] | (l[16] >> 32), false);
 }
 
 uint64_t expand(uint64_t val)
