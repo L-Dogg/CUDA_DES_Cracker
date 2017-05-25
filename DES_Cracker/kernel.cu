@@ -245,7 +245,7 @@ uint64_t jechanka(uint64_t permutated, uint64_t* keys)
 		uint64_t res = 0;
 		for (int j = 0; i < 32; i++)
 		{
-			if (v & ((uint64_t)1 << (63 - (Pbox[j] - j))))
+			if (v & ((uint64_t)1 << (63 - (Pbox[j] - 1))))
 				res += ((uint64_t)1 << 63 - j);
 		}
 		r[i] = l[i - 1] ^ res;
