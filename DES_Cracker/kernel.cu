@@ -247,14 +247,6 @@ uint64_t jechanka(uint64_t permutated, uint64_t* keys)
 		r[i] = l[i - 1] ^ res;
 	}
 
-	printf("L16: \n");
-	printbits(r[16], 0, 28);
-	printf("R16: \n");
-	printbits(l[16], 0, 28);
-	printf("R16L16: \n");
-	printbits((r[16] & mask) + ((l[16] >> 32) & mask));
-	printf("\n");
-
 	return permutate_block(r[16] + (l[16] >> 32), false);
 }
 
