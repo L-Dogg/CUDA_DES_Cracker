@@ -131,7 +131,7 @@ const int Pbox[32] = {
 };
 
 void printbits(uint64_t v, int start = 0, int end = 64);
-uint64_t* generate_keys(uint64_t basekey);
+uint64_t* generate_keys(uint64_t basekey, bool reverse = false);
 uint64_t permutate_block(uint64_t block, bool initial);
 uint64_t jechanka(uint64_t permutated, uint64_t* keys);
 uint64_t expand(uint64_t val);
@@ -140,16 +140,29 @@ uint64_t calculate_sboxes(uint64_t val);
 int main()
 {
 	uint64_t key = 0b0001001100110100010101110111100110011011101111001101111111110001;
+
 	uint64_t msg = 0b0000000100100011010001010110011110001001101010111100110111101111;
+	printf("Plain text:\n");
+	printbits(msg);
 
-	uint64_t* keys = generate_keys(key);
+	uint64_t* keys = generate_keys(key, false);
+	uint64_t encrypted = jechanka(permutate_block(msg, true), keys);
+	printf("Encrypted:\n");
+	printbits(encrypted);
 
-	printbits(jechanka(permutate_block(msg, true), keys));
+	uint64_t* decrypt_keys = generate_keys(key, true);
+	uint64_t decrypted = jechanka(permutate_block(encrypted, true), decrypt_keys);
+	printf("Decrypted:\n");
+	printbits(decrypted);
+
+	printf(msg == decrypted ? "SUCCESS\n" : "FAILURE\n");
 
     return 0;
 }
 
-uint64_t* generate_keys(uint64_t basekey)
+
+
+uint64_t* generate_keys(uint64_t basekey, bool reverse)
 {
 	uint64_t* keys = (uint64_t *)malloc(16 * sizeof(uint64_t));
 	uint64_t first = 0;
@@ -192,9 +205,19 @@ uint64_t* generate_keys(uint64_t basekey)
 			if (keys[i] & ((uint64_t)1 << (63 - (PC2[j] - 1))))
 				tmp += ((uint64_t)1 << 63 - j);
 		}
-
 		keys[i] = tmp;
 	}
+
+	if (reverse)
+	{
+		for (int i = 1; i <= 8; i++)
+		{
+			uint64_t tmp = keys[i];
+			keys[i] = keys[17 - i];
+			keys[17 - i] = tmp;
+		}
+	}
+
 	return keys;
 }
 
