@@ -140,7 +140,7 @@ uint64_t calculate_sboxes(uint64_t val);
 int main()
 {
 	uint64_t key = 0b0001001100110100010101110111100110011011101111001101111111110001;
-	uint64_t msg = 0b0001000101001000110100010101100111100010011010101111001101111011;
+	uint64_t msg = 0b0000000100100011010001010110011110001001101010111100110111101111;
 
 	uint64_t* keys = generate_keys(key);
 
@@ -234,16 +234,12 @@ uint64_t jechanka(uint64_t permutated, uint64_t* keys)
 	l[0] = permutated & mask;
 	r[0] = (permutated << 32) & mask;
 
-	printbits(l[0]);
-	printbits(r[0]);
-	printf("\n");
-
 	for(int i = 1; i <= 16; i++)
 	{
 		l[i] = r[i - 1];
 		uint64_t v = calculate_sboxes(keys[i] ^ expand(r[i - 1]));
 		uint64_t res = 0;
-		for (int j = 0; i < 32; i++)
+		for (int j = 0; j < 32; j++)
 		{
 			if (v & ((uint64_t)1 << (63 - (Pbox[j] - 1))))
 				res += ((uint64_t)1 << 63 - j);
@@ -251,8 +247,11 @@ uint64_t jechanka(uint64_t permutated, uint64_t* keys)
 		r[i] = l[i - 1] ^ res;
 	}
 
-	printbits(r[16]);
-	printbits(l[16]);
+	printf("L16: \n");
+	printbits(r[16], 0, 28);
+	printf("R16: \n");
+	printbits(l[16], 0, 28);
+	printf("R16L16: \n");
 	printbits((r[16] & mask) + ((l[16] >> 32) & mask));
 	printf("\n");
 
