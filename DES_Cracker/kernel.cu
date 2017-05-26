@@ -393,35 +393,33 @@ __device__ __host__ void DES(uint64_t encryptedMessage[], uint64_t decryptedMess
 }
 __global__ void worker_thread(const uint64_t message[], uint64_t encrypted[], uint64_t decrypted[], int known_zeros)
 {
-	uint64_t threadId = (blockIdx.x * BLOCK_SIZE * threadIdx.x);
+	uint64_t threadId = blockIdx.x * BLOCK_SIZE + threadIdx.x;
 	uint64_t mask = 0b0000000000000000000000000000000000000000000000000000000001111111;
 	uint64_t suffix = ((threadId & (mask << 14)) << 3) | ((threadId & (mask << 7)) << 2) | ((threadId & mask) << 1);
 	uint64_t current_key = 0;
-	uint64_t max = (uint64_t)(((uint64_t)1) << (35 - (known_zeros - known_zeros / 8)));
-	bool go = true;
+	uint64_t max = (uint64_t)1 << (35 - (known_zeros - known_zeros / 8));
+	uint64_t current_message[MSGLEN];
+	int j, ok;
+
 	for (uint64_t i = 0; i < max && work == 1; i++)
 	{
-		go = true;
-		current_key = 0;
 		current_key = (((i & (mask << 28)) | (i & (mask << 21)) | (i & (mask << 14)) | (i & (mask << 7)) | (i & mask)) << 24) | suffix;
-		DES(encrypted, decrypted, current_key, d_PC1, d_Rotations, d_PC2,
-			d_InitialPermutation, d_FinalPermutation, d_DesExpansion, d_DesSbox, d_Pbox, false);
+		DES(encrypted, current_message, current_key, d_PC1, d_Rotations, d_PC2, d_InitialPermutation, d_FinalPermutation, d_DesExpansion, d_DesSbox, d_Pbox, false);
 
-		for (int j = 0; j < MSGLEN; j++)
-		{
-			if (message[j] != decrypted[j])
-			{
-				go = false;
+		ok = 1;
+		for (j = 0; j < MSGLEN; j++) {
+			if (current_message[j] != message[j]) {
+				ok = 0;
 				break;
 			}
 		}
-		if (!go)
-			continue;
 
-		for (int j = 0; j < MSGLEN; j++)
-			decrypted[j] = message[j];
-		work = 0;
-		break;
+		if (ok == 1) {
+			for (j = 0; j < MSGLEN; j++) {
+				decrypted[j] = current_message[j];
+			}
+			work = 0;
+		}
 	}
 }
 
@@ -502,7 +500,7 @@ int main()
 	uint64_t msg[1] = { 0b00000000000100100011010001010110011110001001101010111100110111101111 };
 	uint64_t decrypted[1];
 	uint64_t encrypted[1];
-
+	bool success;
 	printf("Plain text:\n");
 	printbits(msg[0]);
 
@@ -524,11 +522,27 @@ int main()
 	{
 		printf("Decrypted:\n");
 		printbits(decrypted[0]);
+		success = true;
+		for(int i = 0; i < MSGLEN; i++)
+			if (msg[i] != decrypted[i])
+			{
+				success = false;
+				break;
+			}
+		printf(success ? "SUCCESS\n" : "FAILURE\n");
 	}
 
 	DES(encrypted, decrypted, key, PC1, Rotations, PC2, InitialPermutation, FinalPermutation, DesExpansion, DesSbox, Pbox, false);
 	printf("Decrypted with proper key:\n");
 	printbits(decrypted[0]);
+	success = true;
+	for (int i = 0; i < MSGLEN; i++)
+		if (msg[i] != decrypted[i])
+		{
+			success = false;
+			break;
+		}
+	printf(success ? "SUCCESS\n" : "FAILURE\n");
 
 	getchar();
 	return 0;
