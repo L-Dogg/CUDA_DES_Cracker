@@ -243,9 +243,8 @@ __constant__ int d_Pbox[32] = {
 	19, 13, 30,  6, 22, 11,  4, 25
 };
 
-__device__ __host__ uint64_t* generate_keys(uint64_t basekey, bool reverse, const int PC1[], const int PC2[], const int Rotations[])
+__device__ __host__ uint64_t* generate_keys(uint64_t basekey, bool reverse, const int PC1[], const int PC2[], const int Rotations[], uint64_t keys[])
 {
-	uint64_t* keys = (uint64_t *)malloc(16 * sizeof(uint64_t));
 	uint64_t first = 0;
 	for (int i = 0; i < 56; i++)
 	{
@@ -301,7 +300,6 @@ __device__ __host__ uint64_t* generate_keys(uint64_t basekey, bool reverse, cons
 
 	return keys;
 }
-
 __device__ __host__ void printbits(uint64_t v, int start = 0, int end = 64)
 {
 	for (int ii = start; ii < end; ii++)
@@ -313,7 +311,6 @@ __device__ __host__ void printbits(uint64_t v, int start = 0, int end = 64)
 	}
 	printf("\n");
 }
-
 __device__ __host__ uint64_t permutate_block(uint64_t block, bool initial, const int InitialPermutation[], const int FinalPermutation[])
 {
 	uint64_t permutation = 0;
@@ -330,7 +327,6 @@ __device__ __host__ uint64_t permutate_block(uint64_t block, bool initial, const
 
 	return permutation;
 }
-
 __device__ __host__ uint64_t expand(uint64_t val, const int DesExpansion[])
 {
 	uint64_t res = 0;
@@ -341,7 +337,6 @@ __device__ __host__ uint64_t expand(uint64_t val, const int DesExpansion[])
 	}
 	return res;
 }
-
 __device__ __host__ uint64_t calculate_sboxes(uint64_t val, const int DesSbox[8][4][16])
 {
 	uint64_t mask = 0b1111110000000000000000000000000000000000000000000000000000000000;
@@ -357,7 +352,6 @@ __device__ __host__ uint64_t calculate_sboxes(uint64_t val, const int DesSbox[8]
 	}
 	return ret;
 }
-
 __device__ __host__ uint64_t jechanka(uint64_t permutated, uint64_t* keys, const int PC1[], const int Rotations[],
 	const int PC2[], const int InitialPermutation[], const int FinalPermutation[], const int DesExpansion[], const int Sbox[8][4][16], const int Pbox[])
 {
@@ -381,12 +375,12 @@ __device__ __host__ uint64_t jechanka(uint64_t permutated, uint64_t* keys, const
 
 	return permutate_block(r[16] + (l[16] >> 32), false, InitialPermutation, FinalPermutation);
 }
-
 __device__ __host__ void DES(uint64_t encryptedMessage[], uint64_t decryptedMessage[], uint64_t key, const int PC1[], const int Rotations[],
 	const int PC2[], const int InitialPermutation[], const int FinalPermutation[], const int DesExpansion[], 
 	const int Sbox[8][4][16], const int Pbox[], bool encrypt)
 {
-	uint64_t* keys = generate_keys(key, !encrypt, PC1, PC2, Rotations);
+	uint64_t keys[17];
+	generate_keys(key, !encrypt, PC1, PC2, Rotations, keys);
 	for (int i = 0; i < MSGLEN; i++)
 	{
 		if (encrypt)
@@ -397,10 +391,8 @@ __device__ __host__ void DES(uint64_t encryptedMessage[], uint64_t decryptedMess
 				PC2, InitialPermutation, FinalPermutation, DesExpansion, Sbox, Pbox);
 	}
 }
-
 __global__ void worker_thread(const uint64_t message[], uint64_t encrypted[], uint64_t decrypted[], int known_zeros)
 {
-	// 21 bitów + 3 parzystoœci w œrodku
 	uint64_t threadId = (blockIdx.x * BLOCK_SIZE * threadIdx.x);
 	uint64_t mask = 0b0000000000000000000000000000000000000000000000000000000001111111;
 	uint64_t suffix = ((threadId & (mask << 14)) << 3) | ((threadId & (mask << 7)) << 2) | ((threadId & mask) << 1);
@@ -505,7 +497,7 @@ Error:
 int main()
 {
 	uint64_t key = 0b0000000000000000000000000000000000000000101111001101111011110000;
-	uint64_t msg[1] = { 0x0123456789ABCDEF };
+	uint64_t msg[1] = { 0b00000000000100100011010001010110011110001001101010111100110111101111 };
 	uint64_t decrypted[1];
 
 	printf("Plain text:\n");
@@ -519,9 +511,13 @@ int main()
 	cudaError_t cudaStatus = CudaDES(msg, msg, decrypted, key);
 	if (cudaStatus != cudaSuccess)
 	{
-		printf("Gówno");
+		printf("Beniz");
 	}
-
+	else
+	{
+		printf("Decrypted:\n");
+		printbits(decrypted[1]);
+	}
 	getchar();
     return 0;
 }
