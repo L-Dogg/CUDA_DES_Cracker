@@ -11,6 +11,8 @@
 #define KNOWN_ZEROS 38
 #define MSGLEN		1
 
+__device__ int work = 1;
+
 // Host matrices:
 const int PC1[56] = {
 	57, 49, 41, 33, 25, 17,  9,
@@ -243,13 +245,9 @@ __constant__ int d_Pbox[32] = {
 	19, 13, 30,  6, 22, 11,  4, 25
 };
 
-__device__ __host__ uint64_t* generate_keys(uint64_t basekey, bool reverse, const int PC1[], const int PC2[], const int Rotations[], uint64_t keys[])
+__device__ __host__ void generate_keys(uint64_t basekey, bool reverse, const int PC1[], const int PC2[], const int Rotations[], uint64_t keys[])
 {
 	uint64_t first = 0;
-
-	for (int i = 0; i < 17; i++)
-		keys[i] = 0;
-
 	for (int i = 0; i < 56; i++)
 	{
 		if (basekey & ((uint64_t)1 << (63 - (PC1[i] - 1))))
@@ -301,8 +299,6 @@ __device__ __host__ uint64_t* generate_keys(uint64_t basekey, bool reverse, cons
 			keys[17 - i] = tmp;
 		}
 	}
-
-	return keys;
 }
 __device__ __host__ void printbits(uint64_t v, int start = 0, int end = 64)
 {
@@ -356,7 +352,7 @@ __device__ __host__ uint64_t calculate_sboxes(uint64_t val, const int DesSbox[8]
 	}
 	return ret;
 }
-__device__ __host__ uint64_t jechanka(uint64_t permutated, uint64_t* keys, const int PC1[], const int Rotations[],
+__device__ __host__ uint64_t jechanka(uint64_t permutated, uint64_t keys[], const int PC1[], const int Rotations[],
 	const int PC2[], const int InitialPermutation[], const int FinalPermutation[], const int DesExpansion[], const int Sbox[8][4][16], const int Pbox[])
 {
 	uint64_t l[17], r[17];
@@ -380,10 +376,10 @@ __device__ __host__ uint64_t jechanka(uint64_t permutated, uint64_t* keys, const
 	return permutate_block(r[16] + (l[16] >> 32), false, InitialPermutation, FinalPermutation);
 }
 __device__ __host__ void DES(uint64_t encryptedMessage[], uint64_t decryptedMessage[], uint64_t key, const int PC1[], const int Rotations[],
-	const int PC2[], const int InitialPermutation[], const int FinalPermutation[], const int DesExpansion[], 
+	const int PC2[], const int InitialPermutation[], const int FinalPermutation[], const int DesExpansion[],
 	const int Sbox[8][4][16], const int Pbox[], bool encrypt)
 {
-	uint64_t keys[16];
+	uint64_t keys[17];
 	generate_keys(key, !encrypt, PC1, PC2, Rotations, keys);
 	for (int i = 0; i < MSGLEN; i++)
 	{
@@ -403,26 +399,27 @@ __global__ void worker_thread(const uint64_t message[], uint64_t encrypted[], ui
 	uint64_t current_key = 0;
 	uint64_t max = (uint64_t)(((uint64_t)1) << (35 - (known_zeros - known_zeros / 8)));
 	bool go = true;
-	for (uint64_t i = 0; i < max; i++)
+	for (uint64_t i = 0; i < max && work == 1; i++)
 	{
 		go = true;
 		current_key = (((i & (mask << 28)) | (i & (mask << 21)) | (i & (mask << 14)) | (i & (mask << 7)) | (i & mask)) << 24) | suffix;
-		DES(encrypted, decrypted, current_key, d_PC1, d_Rotations, d_PC2, 
+		DES(encrypted, decrypted, current_key, d_PC1, d_Rotations, d_PC2,
 			d_InitialPermutation, d_FinalPermutation, d_DesExpansion, d_DesSbox, d_Pbox, false);
 
-		for(int j = 0; j < MSGLEN; j++)
+		for (int j = 0; j < MSGLEN; j++)
 		{
-			if (message[j] != encrypted[j])
+			if (message[j] != decrypted[j])
 			{
 				go = false;
 				break;
 			}
 		}
-		if(!go)
+		if (!go)
 			continue;
 
 		for (int j = 0; j < MSGLEN; j++)
-			encrypted[j] = message[j];
+			decrypted[j] = message[j];
+		work = 0;
 		break;
 	}
 }
@@ -430,7 +427,7 @@ __global__ void worker_thread(const uint64_t message[], uint64_t encrypted[], ui
 cudaError_t CudaDES(uint64_t plaintext[], uint64_t encrypted[], uint64_t decrypted[], uint64_t key)
 {
 	cudaError_t cudaStatus;
-	
+
 	uint64_t *plain, *enc, *dec;
 
 	cudaStatus = cudaMalloc(&plain, MSGLEN * sizeof(uint64_t));
@@ -503,16 +500,17 @@ int main()
 	uint64_t key = 0b0000000000000000000000000000000000000000101111001101111011110000;
 	uint64_t msg[1] = { 0b00000000000100100011010001010110011110001001101010111100110111101111 };
 	uint64_t decrypted[1];
+	uint64_t encrypted[1];
 
 	printf("Plain text:\n");
-	printbits(msg[1]);
+	printbits(msg[0]);
 
-	DES(msg, decrypted, key, PC1, Rotations, PC2, InitialPermutation, FinalPermutation, DesExpansion, DesSbox, Pbox, true);
+	DES(encrypted, msg, key, PC1, Rotations, PC2, InitialPermutation, FinalPermutation, DesExpansion, DesSbox, Pbox, true);
 
 	printf("Encrypted:\n");
-	printbits(decrypted[1]);
+	printbits(encrypted[0]);
 
-	cudaError_t cudaStatus = CudaDES(msg, msg, decrypted, key);
+	cudaError_t cudaStatus = CudaDES(msg, encrypted, decrypted, key);
 	if (cudaStatus != cudaSuccess)
 	{
 		printf("Beniz");
@@ -520,8 +518,8 @@ int main()
 	else
 	{
 		printf("Decrypted:\n");
-		printbits(decrypted[1]);
+		printbits(decrypted[0]);
 	}
 	getchar();
-    return 0;
+	return 0;
 }
