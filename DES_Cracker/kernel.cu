@@ -246,6 +246,10 @@ __constant__ int d_Pbox[32] = {
 __device__ __host__ uint64_t* generate_keys(uint64_t basekey, bool reverse, const int PC1[], const int PC2[], const int Rotations[], uint64_t keys[])
 {
 	uint64_t first = 0;
+
+	for (int i = 0; i < 17; i++)
+		keys[i] = 0;
+
 	for (int i = 0; i < 56; i++)
 	{
 		if (basekey & ((uint64_t)1 << (63 - (PC1[i] - 1))))
@@ -379,7 +383,7 @@ __device__ __host__ void DES(uint64_t encryptedMessage[], uint64_t decryptedMess
 	const int PC2[], const int InitialPermutation[], const int FinalPermutation[], const int DesExpansion[], 
 	const int Sbox[8][4][16], const int Pbox[], bool encrypt)
 {
-	uint64_t keys[17];
+	uint64_t keys[16];
 	generate_keys(key, !encrypt, PC1, PC2, Rotations, keys);
 	for (int i = 0; i < MSGLEN; i++)
 	{
