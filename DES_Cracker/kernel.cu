@@ -8,7 +8,7 @@
 #define FIRSTBIT	0x8000000000000000
 #define BLOCK_SIZE	1024
 #define BLOCKS		2048
-#define KNOWN_ZEROS 38
+#define KNOWN_ZEROS 37
 #define MSGLEN		1
 
 __device__ int work = 1;
@@ -403,7 +403,7 @@ __global__ void worker_thread(const uint64_t message[], uint64_t encrypted[], ui
 
 	for (uint64_t i = 0; i < max && work == 1; i++)
 	{
-		current_key = (((i & (mask << 28)) | (i & (mask << 21)) | (i & (mask << 14)) | (i & (mask << 7)) | (i & mask)) << 24) | suffix;
+		current_key = (((i & (mask << 28)) << 5) | (((i & (mask << 21)) << 4) | ((i & (mask << 14)) << 3) | ((i & (mask << 7)) << 2) | ((i & mask) << 1)) << 24) | suffix;
 		DES(encrypted, current_message, current_key, d_PC1, d_Rotations, d_PC2, d_InitialPermutation, d_FinalPermutation, d_DesExpansion, d_DesSbox, d_Pbox, false);
 
 		go = true;
@@ -500,7 +500,7 @@ Error:
 
 int main()
 {
-	uint64_t key = 0b0000000000000000000000000000000000000000101111001101111011110000;
+	uint64_t key = 0b0000000000000000000000000000000000000110111111101111111011111110;
 	uint64_t msg[1] = { 0b00000000000100100011010001010110011110001001101010111100110111101111 };
 	uint64_t decrypted[1];
 	uint64_t encrypted[1];
