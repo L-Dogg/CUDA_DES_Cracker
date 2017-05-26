@@ -402,6 +402,7 @@ __global__ void worker_thread(const uint64_t message[], uint64_t encrypted[], ui
 	for (uint64_t i = 0; i < max && work == 1; i++)
 	{
 		go = true;
+		current_key = 0;
 		current_key = (((i & (mask << 28)) | (i & (mask << 21)) | (i & (mask << 14)) | (i & (mask << 7)) | (i & mask)) << 24) | suffix;
 		DES(encrypted, decrypted, current_key, d_PC1, d_Rotations, d_PC2,
 			d_InitialPermutation, d_FinalPermutation, d_DesExpansion, d_DesSbox, d_Pbox, false);
@@ -509,8 +510,12 @@ int main()
 
 	printf("Encrypted:\n");
 	printbits(encrypted[0]);
-
+	clock_t begin = clock();
+	printf("Starting GPU DES cracking...\n");
 	cudaError_t cudaStatus = CudaDES(msg, encrypted, decrypted, key);
+	clock_t end = clock();
+	double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+	printf("Finished GPU DES cracking. Time elapsed: %fs.\n", elapsed_secs);
 	if (cudaStatus != cudaSuccess)
 	{
 		printf("Beniz");
@@ -520,6 +525,11 @@ int main()
 		printf("Decrypted:\n");
 		printbits(decrypted[0]);
 	}
+
+	DES(encrypted, decrypted, key, PC1, Rotations, PC2, InitialPermutation, FinalPermutation, DesExpansion, DesSbox, Pbox, false);
+	printf("Decrypted with proper key:\n");
+	printbits(decrypted[0]);
+
 	getchar();
 	return 0;
 }
