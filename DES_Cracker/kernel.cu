@@ -2,13 +2,12 @@
 #include "device_launch_parameters.h"
 #include <stdio.h>
 #include <cstdint>
-#include <cstdlib>
 #include <ctime>
 
 #define FIRSTBIT	0x8000000000000000
 #define BLOCK_SIZE	1024
 #define BLOCKS		2048
-#define KNOWN_ZEROS 37
+#define KNOWN_ZEROS	35
 #define MSGLEN		1
 
 __device__ int work = 1;
@@ -257,7 +256,7 @@ __device__ __host__ void generate_keys(uint64_t basekey, bool reverse, const int
 	uint64_t d[17];
 	uint64_t c[17];
 
-	const uint64_t mask = 0b000000000000000000000000000111111111111111111111111111110000000;
+	const uint64_t mask = 0b0000000000000000000000000000111111111111111111111111111100000000;
 	d[0] = (first & mask) << 28; //right half
 	c[0] = ((first >> 28) & mask) << 28; //left half
 
@@ -300,6 +299,7 @@ __device__ __host__ void generate_keys(uint64_t basekey, bool reverse, const int
 		}
 	}
 }
+
 __device__ __host__ void printbits(uint64_t v, int start = 0, int end = 64)
 {
 	for (int ii = start; ii < end; ii++)
@@ -311,6 +311,7 @@ __device__ __host__ void printbits(uint64_t v, int start = 0, int end = 64)
 	}
 	printf("\n");
 }
+
 __device__ __host__ uint64_t permutate_block(uint64_t block, bool initial, const int InitialPermutation[], const int FinalPermutation[])
 {
 	uint64_t permutation = 0;
@@ -327,6 +328,7 @@ __device__ __host__ uint64_t permutate_block(uint64_t block, bool initial, const
 
 	return permutation;
 }
+
 __device__ __host__ uint64_t expand(uint64_t val, const int DesExpansion[])
 {
 	uint64_t res = 0;
@@ -337,6 +339,7 @@ __device__ __host__ uint64_t expand(uint64_t val, const int DesExpansion[])
 	}
 	return res;
 }
+
 __device__ __host__ uint64_t calculate_sboxes(uint64_t val, const int DesSbox[8][4][16])
 {
 	uint64_t mask = 0b1111110000000000000000000000000000000000000000000000000000000000;
@@ -352,8 +355,10 @@ __device__ __host__ uint64_t calculate_sboxes(uint64_t val, const int DesSbox[8]
 	}
 	return ret;
 }
-__device__ __host__ uint64_t jechanka(uint64_t permutated, uint64_t keys[], const int PC1[], const int Rotations[],
-	const int PC2[], const int InitialPermutation[], const int FinalPermutation[], const int DesExpansion[], const int Sbox[8][4][16], const int Pbox[])
+
+__device__ __host__ uint64_t jechanka(uint64_t permutated, uint64_t keys[], const int PC1[], const int Rotations[], const int PC2[], 
+									  const int InitialPermutation[], const int FinalPermutation[], const int DesExpansion[], 
+									  const int Sbox[8][4][16], const int Pbox[])
 {
 	uint64_t l[17], r[17];
 	uint64_t mask = 0b1111111111111111111111111111111100000000000000000000000000000000;
@@ -375,9 +380,10 @@ __device__ __host__ uint64_t jechanka(uint64_t permutated, uint64_t keys[], cons
 
 	return permutate_block(r[16] + (l[16] >> 32), false, InitialPermutation, FinalPermutation);
 }
+
 __device__ __host__ void DES(uint64_t encryptedMessage[], uint64_t decryptedMessage[], uint64_t key, const int PC1[], const int Rotations[],
-	const int PC2[], const int InitialPermutation[], const int FinalPermutation[], const int DesExpansion[],
-	const int Sbox[8][4][16], const int Pbox[], bool encrypt)
+							 const int PC2[], const int InitialPermutation[], const int FinalPermutation[], const int DesExpansion[],
+							 const int Sbox[8][4][16], const int Pbox[], bool encrypt)
 {
 	uint64_t keys[17];
 	generate_keys(key, !encrypt, PC1, PC2, Rotations, keys);
@@ -389,8 +395,10 @@ __device__ __host__ void DES(uint64_t encryptedMessage[], uint64_t decryptedMess
 		else
 			decryptedMessage[i] = jechanka(permutate_block(encryptedMessage[i], true, InitialPermutation, FinalPermutation), keys, PC1, Rotations,
 				PC2, InitialPermutation, FinalPermutation, DesExpansion, Sbox, Pbox);
+
 	}
 }
+
 __global__ void worker_thread(const uint64_t message[], uint64_t encrypted[], uint64_t decrypted[], int known_zeros)
 {
 	uint64_t threadId = blockIdx.x * BLOCK_SIZE + threadIdx.x;
@@ -431,44 +439,44 @@ cudaError_t CudaDES(uint64_t plaintext[], uint64_t encrypted[], uint64_t decrypt
 {
 	cudaError_t cudaStatus;
 
-	uint64_t *plain, *enc, *dec;
+	uint64_t *d_plain, *d_enc, *d_dec;
 
-	cudaStatus = cudaMalloc(&plain, MSGLEN * sizeof(uint64_t));
+	cudaStatus = cudaMalloc(&d_plain, MSGLEN * sizeof(uint64_t));
 	if (cudaStatus != cudaSuccess)
 	{
 		fprintf(stderr, "cudaMalloc failed!");
 		goto Error;
 	}
 
-	cudaStatus = cudaMalloc(&enc, MSGLEN * sizeof(uint64_t));
+	cudaStatus = cudaMalloc(&d_enc, MSGLEN * sizeof(uint64_t));
 	if (cudaStatus != cudaSuccess)
 	{
 		fprintf(stderr, "cudaMalloc failed!");
 		goto Error;
 	}
 
-	cudaStatus = cudaMalloc(&dec, MSGLEN * sizeof(uint64_t));
+	cudaStatus = cudaMalloc(&d_dec, MSGLEN * sizeof(uint64_t));
 	if (cudaStatus != cudaSuccess)
 	{
 		fprintf(stderr, "cudaMalloc failed!");
 		goto Error;
 	}
 
-	cudaStatus = cudaMemcpy(plain, plaintext, MSGLEN * sizeof(uint64_t), cudaMemcpyHostToDevice);
+	cudaStatus = cudaMemcpy(d_plain, plaintext, MSGLEN * sizeof(uint64_t), cudaMemcpyHostToDevice);
 	if (cudaStatus != cudaSuccess)
 	{
 		fprintf(stderr, "cudaMemcpy failed!");
 		goto Error;
 	}
 
-	cudaStatus = cudaMemcpy(enc, encrypted, MSGLEN * sizeof(uint64_t), cudaMemcpyHostToDevice);
+	cudaStatus = cudaMemcpy(d_enc, encrypted, MSGLEN * sizeof(uint64_t), cudaMemcpyHostToDevice);
 	if (cudaStatus != cudaSuccess)
 	{
 		fprintf(stderr, "cudaMemcpy failed!");
 		goto Error;
 	}
 
-	worker_thread << < BLOCKS, BLOCK_SIZE >> > (plain, enc, dec, KNOWN_ZEROS);
+	worker_thread << < BLOCKS, BLOCK_SIZE >> > (d_plain, d_enc, d_dec, KNOWN_ZEROS);
 	cudaStatus = cudaGetLastError();
 	if (cudaStatus != cudaSuccess)
 	{
@@ -483,7 +491,7 @@ cudaError_t CudaDES(uint64_t plaintext[], uint64_t encrypted[], uint64_t decrypt
 		goto Error;
 	}
 
-	cudaStatus = cudaMemcpy(decrypted, dec, MSGLEN * sizeof(uint64_t), cudaMemcpyDeviceToHost);
+	cudaStatus = cudaMemcpy(decrypted, d_dec, MSGLEN * sizeof(uint64_t), cudaMemcpyDeviceToHost);
 	if (cudaStatus != cudaSuccess)
 	{
 		fprintf(stderr, "cudaMemcpy failed!");
@@ -491,11 +499,29 @@ cudaError_t CudaDES(uint64_t plaintext[], uint64_t encrypted[], uint64_t decrypt
 	}
 
 Error:
-	cudaFree(plain);
-	cudaFree(enc);
-	cudaFree(dec);
+	cudaFree(d_plain);
+	cudaFree(d_enc);
+	cudaFree(d_dec);
 
 	return cudaStatus;
+}
+
+void printmsg(uint64_t msg[])
+{
+	for (int i = 0; i < MSGLEN; i++)
+		printbits(msg[i]);
+}
+
+bool proper_decipher(uint64_t msg[], uint64_t decrypted[])
+{
+	for (int i = 0; i < MSGLEN; i++)
+	{
+		if (msg[i] != decrypted[i])
+		{
+			return false;
+		}
+	}
+	return true;
 }
 
 int main()
@@ -506,52 +532,39 @@ int main()
 	uint64_t encrypted[1];
 	bool success;
 	printf("Plain text:\n");
-
-	for(int i = 0; i < MSGLEN; i++)
-		printbits(msg[0]);
+	printmsg(msg);
 
 	DES(encrypted, msg, key, PC1, Rotations, PC2, InitialPermutation, FinalPermutation, DesExpansion, DesSbox, Pbox, true);
 
 	printf("Encrypted:\n");
-	for (int i = 0; i < MSGLEN; i++)
-		printbits(encrypted[0]);
+	printmsg(encrypted);
 
 	clock_t begin = clock();
-	printf("Starting GPU DES cracking...\n");
+	printf("Starting GPU DES cracking for %d known leading zeros...\n", KNOWN_ZEROS);
 	cudaError_t cudaStatus = CudaDES(msg, encrypted, decrypted, key);
 	clock_t end = clock();
 	double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
-	printf("Finished GPU DES cracking. Time elapsed: %fs.\n", elapsed_secs);
+	printf("Finished GPU DES cracking for known leading zeros count = %d.\n Time elapsed: %fs.\n", KNOWN_ZEROS, elapsed_secs);
 	if (cudaStatus != cudaSuccess)
 	{
-		printf("Cos sie, cos sie popsulo...");
+		printf("Cos sie, cos sie popsulo...\n");
 	}
 	else
 	{
 		printf("Decrypted:\n");
-		printbits(decrypted[0]);
-		success = true;
-		for(int i = 0; i < MSGLEN; i++)
-			if (msg[i] != decrypted[i])
-			{
-				success = false;
-				break;
-			}
+		printmsg(decrypted);
+		success = proper_decipher(msg, decrypted);
 		printf(success ? "SUCCESS\n" : "FAILURE\n");
 	}
-
+	
+	
 	DES(encrypted, decrypted, key, PC1, Rotations, PC2, InitialPermutation, FinalPermutation, DesExpansion, DesSbox, Pbox, false);
 	printf("Decrypted with proper key:\n");
-	printbits(decrypted[0]);
-	success = true;
-	for (int i = 0; i < MSGLEN; i++)
-		if (msg[i] != decrypted[i])
-		{
-			success = false;
-			break;
-		}
+	printmsg(decrypted);
+	success = proper_decipher(msg, decrypted);
 	printf(success ? "SUCCESS\n" : "FAILURE\n");
 
+	printf("Press any key to exit program\n");
 	getchar();
 	return 0;
 }
