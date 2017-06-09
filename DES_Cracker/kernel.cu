@@ -7,7 +7,7 @@
 #define FIRSTBIT	0x8000000000000000
 #define BLOCK_SIZE	1024
 #define BLOCKS		2048
-#define KNOWN_ZEROS	35
+#define KNOWN_ZEROS	26
 #define MSGLEN		1
 
 __device__ int work = 1;
@@ -544,7 +544,7 @@ int main()
 	cudaError_t cudaStatus = CudaDES(msg, encrypted, decrypted, key);
 	clock_t end = clock();
 	double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
-	printf("Finished GPU DES cracking for known leading zeros count = %d.\n Time elapsed: %fs.\n", KNOWN_ZEROS, elapsed_secs);
+	printf("Finished GPU DES cracking for known leading zeros count = %d.\nTime elapsed: %fs.\n", KNOWN_ZEROS, elapsed_secs);
 	if (cudaStatus != cudaSuccess)
 	{
 		printf("Cos sie, cos sie popsulo...\n");

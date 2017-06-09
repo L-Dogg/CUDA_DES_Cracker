@@ -1,0 +1,39 @@
+Starting GPU DES cracking for 37 known leading zeros...
+Finished GPU DES cracking for known leading zeros count = 37.
+Time elapsed: 0.826000s. 
+
+Starting GPU DES cracking for 36 known leading zeros... 
+Finished GPU DES cracking for known leading zeros count = 36.
+Time elapsed: 1.346000s. 
+
+Starting GPU DES cracking for 35 known leading zeros...
+Finished GPU DES cracking for known leading zeros count = 35.
+Time elapsed: 2.388000s.
+
+Starting GPU DES cracking for 34 known leading zeros...
+Finished GPU DES cracking for known leading zeros count = 34.
+Time elapsed: 4.479000s.
+
+Starting GPU DES cracking for 33 known leading zeros...
+Finished GPU DES cracking for known leading zeros count = 33.
+Time elapsed: 8.432000s.
+
+Starting GPU DES cracking for 32 known leading zeros...
+Finished GPU DES cracking for known leading zeros count = 32.
+Time elapsed: 16.418000s.
+
+Starting GPU DES cracking for 31 known leading zeros...
+Finished GPU DES cracking for known leading zeros count = 31.
+Time elapsed: 16.413000s.
+
+Starting GPU DES cracking for 30 known leading zeros...
+Finished GPU DES cracking for known leading zeros count = 30.
+Time elapsed: 32.337000s.
+
+Starting GPU DES cracking for 29 known leading zeros...
+Finished GPU DES cracking for known leading zeros count = 29.
+Time elapsed: 64.200000s.
+
+Starting GPU DES cracking for 28 known leading zeros...
+Finished GPU DES cracking for known leading zeros count = 28.
+Time elapsed: 127.775000s.

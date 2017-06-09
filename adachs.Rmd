@@ -1,0 +1,135 @@
+---
+title: "<p class='title'>CUDA - Praca Domowa 2:
+  DES brute force cracker</p>"
+author: "<p class='title'>Szymon Adach</p>"
+date: "<p class='title'>9 Czerwca, 2017</p>"
+output: 
+  html_document:
+    number_sections: true
+    toc: true
+---
+<style>
+  .title {
+    text-align: center;
+    fontsize: 150%;
+  }
+</style>
+
+# Założenia
+Algorytm DES powstał w latach 70., jest zatem bardzo dobrze udokumentowany i implementacja szyfrowania/deszyfrowania nie jest kłopotliwa. Problemem jest jednak jego złamanie, ponieważ w realistycznym przypadku nie znamy klucza (56 bitów użytecznych + 8 bitów parzystości) oraz oryginalnej  wiadomości (dowolnej długości, w praktyce uzupełnianej do wielokrotności 64). Mimo wykorzystania GPU, użycie metody brute force dawałoby niesatysfakcjonujący czas wykonania. W związku z tym poczyniłem następujące założenia:
+
+* Znana jest oryginalna, niezaszyfrowana wiadomość - ułatwia to zatrzymanie obliczeń natychmiast po odnalezieniu poprawnego klucza dzięki możliwości porównywania zdeszyfrowanej (przy pomocy aktualnie wyliczonego klucza) wiadomości z oryginalną
+* Znana jest długość prefiksu klucza, w którym wszystkie bity ustawione są na zero - skraca to długość badanych przez wątki kluczy.
+
+# Implementacja 
+Algorytm implementowałem na podstawie opisu na stronie [Uniwersytetu Technicznego w Berlinie](http://page.math.tu-berlin.de/~kant/teaching/hess/krypto-ws2006/des.htm).
+
+Cały program wykorzystuje typ danych `uint64_t`. Wykorzystanie przesunięć bitowych i masek na ciągach bitów przechowywanych w tym typie jest nawet o 40% szybsze niż operacje prowadzące do równoważnych wyników, które wykorzystują `char`. 
+
+Zdefiniowana stała `KNOWN_ZEROS` informuje jak długi zerowy prefiks klucza jest znany. Globalna zmienna `__device__ int work = 1;` służy do synchronizacji między wątkami - w przypadku, gdy któryś z nich odnajdzie poprawny klucz, obliczenia wszystkich wątków są przerywane dzięki zmienie wartości flagi `work` na 0.
+
+Program wykorzystuje $2^21$ wątków - id wątku daje nam 21 bitów znaczących i 3 bity parzystości, które tworzą sufiks klucza. Pozostałe bity uzupełniane są przez wątek w pętli for - bitów tych jest $64-24-KNOWN\_ZEROS$. Nie wyznaczamy wszystkich bitów, gdyż co ósmy jest bitem parzystości i nie jest bezpośrednio wykorzystywany w obliczeniach. w Każdej iteracji pętli dokonywane jest sprawdzenie zdeszyfrowanej wiadomości z wiadomością oryginalną (przyjąłem za oryginalną wiadomość 1 blok o długości 64 bitów).
+
+# Wyjście programu
+
+Przykładowe wyjście programu prezentuje się następująco:
+
+```
+Plain text:
+0000000100100011010001010110011110001001101010111100110111101111
+Encrypted:
+1001111100001000011111000000101101000011100100101100010101100010
+Starting GPU DES cracking for 27 known leading zeros...
+Finished GPU DES cracking for known leading zeros count = 27.
+Time elapsed: 255.796000s.
+Decrypted:
+0000000100100011010001010110011110001001101010111100110111101111
+SUCCESS
+Decrypted with proper key:
+0000000100100011010001010110011110001001101010111100110111101111
+SUCCESS
+```
+Pierwsza linia to oryginalna wiadomość. Druga linia prezentuje zaszyfrowaną wiadomość. Następnie komunikaty kontrolne informują o rozpoczęciu i zakończeniu obliczeń oraz czasie trwania. Prezentowane jest również odszyfrowana wiadomość oraz komunikat SUCCESS/FAILURE z funkcji porównującej wiadomości. `Decrypted with proper key:` to output testowy, do sprawdzania implementacji - wypisuje wiadomość odszyfrowaną na CPU dostarczonym kluczem.
+
+# Wyniki 
+
+```
+Starting GPU DES cracking for 37 known leading zeros...
+Finished GPU DES cracking for known leading zeros count = 37.
+Time elapsed: 0.826000s. 
+```
+
+```
+Starting GPU DES cracking for 36 known leading zeros... 
+Finished GPU DES cracking for known leading zeros count = 36.
+Time elapsed: 1.346000s.
+```
+
+```
+Starting GPU DES cracking for 35 known leading zeros...
+Finished GPU DES cracking for known leading zeros count = 35.
+Time elapsed: 2.388000s.
+```
+
+```
+Starting GPU DES cracking for 34 known leading zeros...
+Finished GPU DES cracking for known leading zeros count = 34.
+Time elapsed: 4.479000s.
+```
+
+```
+Starting GPU DES cracking for 33 known leading zeros...
+Finished GPU DES cracking for known leading zeros count = 33.
+Time elapsed: 8.432000s.
+```
+
+```
+Starting GPU DES cracking for 32 known leading zeros...
+Finished GPU DES cracking for known leading zeros count = 32.
+Time elapsed: 16.418000s.
+```
+
+```
+Starting GPU DES cracking for 31 known leading zeros...
+Finished GPU DES cracking for known leading zeros count = 31.
+Time elapsed: 16.413000s.
+```
+
+```
+Starting GPU DES cracking for 30 known leading zeros...
+Finished GPU DES cracking for known leading zeros count = 30.
+Time elapsed: 32.337000s.
+```
+
+```
+Starting GPU DES cracking for 29 known leading zeros...
+Finished GPU DES cracking for known leading zeros count = 29.
+Time elapsed: 64.200000s.
+```
+
+```
+Starting GPU DES cracking for 28 known leading zeros...
+Finished GPU DES cracking for known leading zeros count = 28.
+Time elapsed: 127.775000s.
+```
+
+```
+Starting GPU DES cracking for 27 known leading zeros...
+Finished GPU DES cracking for known leading zeros count = 27.
+Time elapsed: 255.796000s.
+```
+
+```{r echo=FALSE, warning=FALSE}
+library(plotly)
+x <- (37:27)
+trace_0 <- c(0.826000, 1.346000, 2.388000, 4.479000, 8.432000, 16.418000, 16.413000, 32.337000, 64.200000, 127.775000, 255.796000)
+data <- data.frame(x, trace_0)
+p <- config(plot_ly() %>%
+  add_trace(x = ~x, y = ~trace_0, name = "Czas [s]", mode = 'lines+markers', line = list(width = 0.45,dash='dot')) %>%
+  layout(
+    title = "Czas łamania szyfru DES",
+    xaxis = list(title="KNOWN_ZEROS"),
+    yaxis = list(title="Czas[s]")
+  ), displayModeBar=FALSE)
+p
+```
