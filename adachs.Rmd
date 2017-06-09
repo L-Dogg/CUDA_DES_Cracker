@@ -28,7 +28,7 @@ Cały program wykorzystuje typ danych `uint64_t`. Wykorzystanie przesunięć bit
 
 Zdefiniowana stała `KNOWN_ZEROS` informuje jak długi zerowy prefiks klucza jest znany. Globalna zmienna `__device__ int work = 1;` służy do synchronizacji między wątkami - w przypadku, gdy któryś z nich odnajdzie poprawny klucz, obliczenia wszystkich wątków są przerywane dzięki zmienie wartości flagi `work` na 0.
 
-Program wykorzystuje $2^21$ wątków - id wątku daje nam 21 bitów znaczących i 3 bity parzystości, które tworzą sufiks klucza. Pozostałe bity uzupełniane są przez wątek w pętli for - bitów tych jest $64-24-KNOWN\_ZEROS$. Nie wyznaczamy wszystkich bitów, gdyż co ósmy jest bitem parzystości i nie jest bezpośrednio wykorzystywany w obliczeniach. w Każdej iteracji pętli dokonywane jest sprawdzenie zdeszyfrowanej wiadomości z wiadomością oryginalną (przyjąłem za oryginalną wiadomość 1 blok o długości 64 bitów).
+Program wykorzystuje $2^{21}$ wątków - id wątku daje nam 21 bitów znaczących i 3 bity parzystości, które tworzą sufiks klucza. Pozostałe bity uzupełniane są przez wątek w pętli for - bitów tych jest $64-24-KNOWN\_ZEROS$. Nie wyznaczamy wszystkich bitów, gdyż co ósmy jest bitem parzystości i nie jest bezpośrednio wykorzystywany w obliczeniach. w Każdej iteracji pętli dokonywane jest sprawdzenie zdeszyfrowanej wiadomości z wiadomością oryginalną (przyjąłem za oryginalną wiadomość 1 blok o długości 64 bitów).
 
 # Wyjście programu
 
@@ -52,6 +52,7 @@ SUCCESS
 Pierwsza linia to oryginalna wiadomość. Druga linia prezentuje zaszyfrowaną wiadomość. Następnie komunikaty kontrolne informują o rozpoczęciu i zakończeniu obliczeń oraz czasie trwania. Prezentowane jest również odszyfrowana wiadomość oraz komunikat SUCCESS/FAILURE z funkcji porównującej wiadomości. `Decrypted with proper key:` to output testowy, do sprawdzania implementacji - wypisuje wiadomość odszyfrowaną na CPU dostarczonym kluczem.
 
 # Wyniki 
+Program uruchamiany był na karcie graficznej GeForce GTX960M. W opcjach komilatora podano `compute_50,sm_50`.
 
 ```
 Starting GPU DES cracking for 37 known leading zeros...
@@ -119,7 +120,7 @@ Finished GPU DES cracking for known leading zeros count = 27.
 Time elapsed: 255.796000s.
 ```
 
-```{r echo=FALSE, warning=FALSE}
+```{r echo=FALSE, warning=FALSE, message=FALSE, fig.align='center'}
 library(plotly)
 x <- (37:27)
 trace_0 <- c(0.826000, 1.346000, 2.388000, 4.479000, 8.432000, 16.418000, 16.413000, 32.337000, 64.200000, 127.775000, 255.796000)
@@ -128,8 +129,10 @@ p <- config(plot_ly() %>%
   add_trace(x = ~x, y = ~trace_0, name = "Czas [s]", mode = 'lines+markers', line = list(width = 0.45,dash='dot')) %>%
   layout(
     title = "Czas łamania szyfru DES",
-    xaxis = list(title="KNOWN_ZEROS"),
+    xaxis = list(title="KNOWN_ZEROS - długość zerowego prefiksu"),
     yaxis = list(title="Czas[s]")
   ), displayModeBar=FALSE)
 p
 ```
+
+Wyniki przedstawione na wykresie są zgodne z przewidywaniami teoretycznymi - zależność jest wykładnicza.
