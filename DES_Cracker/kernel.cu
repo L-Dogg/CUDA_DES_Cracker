@@ -610,27 +610,27 @@ int main()
 
 /* --------------------------------------- CUDA ----------------------------------------------------- */
 
-	//begin = clock();
-	//printf("Starting GPU DES cracking for %d known leading zeros...\n", KNOWN_ZEROS);
-	//cudaError_t cudaStatus = CudaDES(msg, encrypted, decrypted, key);
-	//end = clock();
-	//elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
-	//printf("Finished GPU DES cracking for known leading zeros count = %d.\nTime elapsed: %fs.\n", KNOWN_ZEROS, elapsed_secs);
-	//if (cudaStatus != cudaSuccess)
-	//{
-	//	printf("Cos sie, cos sie popsulo...\n");
-	//}
-	//else
-	//{
-	//	printf("Decrypted:\n");
-	//	printmsg(decrypted);
-	//	success = proper_decipher(msg, decrypted);
-	//	printf(success ? "SUCCESS\n" : "FAILURE\n");
-	//}
+	begin = clock();
+	printf("Starting GPU DES cracking for %d known leading zeros...\n", KNOWN_ZEROS);
+	cudaError_t cudaStatus = CudaDES(msg, encrypted, decrypted, key);
+	end = clock();
+	elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+	printf("Finished GPU DES cracking for known leading zeros count = %d.\nTime elapsed: %fs.\n", KNOWN_ZEROS, elapsed_secs);
+	if (cudaStatus != cudaSuccess)
+	{
+		printf("Cos sie, cos sie popsulo...\n");
+	}
+	else
+	{
+		printf("Decrypted:\n");
+		printmsg(decrypted);
+		success = proper_decipher(msg, decrypted);
+		printf(success ? "SUCCESS\n" : "FAILURE\n");
+	}
 
 /* --------------------------------------- CPU ----------------------------------------------------- */
 	
-	begin = clock();
+	/*begin = clock();
 	printf("Starting CPU DES cracking for %d known leading zeros...\n", KNOWN_ZEROS);
 	cpuDES(msg, encrypted, decrypted, key, KNOWN_ZEROS);
 	end = clock();
@@ -640,7 +640,7 @@ int main()
 	printf("Decrypted:\n");
 	printmsg(decrypted);
 	success = proper_decipher(msg, decrypted);
-	printf(success ? "SUCCESS\n" : "FAILURE\n");
+	printf(success ? "SUCCESS\n" : "FAILURE\n");*/
 	
 /* --------------------------------------- DEBUG ----------------------------------------------------- */
 
