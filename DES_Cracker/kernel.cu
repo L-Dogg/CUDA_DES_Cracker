@@ -585,8 +585,6 @@ void cpuDES(uint64_t plaintext[], uint64_t encrypted[], uint64_t decrypted[], ui
 					decrypted[j] = current_message[j];
 				}
 				cpu_work = 0;
-				printf("Debug:\n");
-				printmsg(decrypted);
 			}
 		}
 	}
