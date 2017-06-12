@@ -1,5 +1,5 @@
 ---
-title: "<p class='title'>CUDA - Praca Domowa 2:
+title: "<p class='title'>CUDA - Praca Domowa 2: <br/>
   DES brute force cracker</p>"
 author: "<p class='title'>Szymon Adach</p>"
 date: "<p class='title'>9 Czerwca, 2017</p>"
@@ -52,7 +52,12 @@ SUCCESS
 Pierwsza linia to oryginalna wiadomość. Druga linia prezentuje zaszyfrowaną wiadomość. Następnie komunikaty kontrolne informują o rozpoczęciu i zakończeniu obliczeń oraz czasie trwania. Prezentowane jest również odszyfrowana wiadomość oraz komunikat SUCCESS/FAILURE z funkcji porównującej wiadomości. `Decrypted with proper key:` to output testowy, do sprawdzania implementacji - wypisuje wiadomość odszyfrowaną na CPU dostarczonym kluczem.
 
 # Wyniki 
-Program uruchamiany był na karcie graficznej GeForce GTX960M. W opcjach komilatora podano `compute_50,sm_50`.
+Program uruchamiany był na karcie graficznej GeForce GTX960M wyposażonej w 640 rdzeni CUDA. W opcjach komilatora podano `compute_50,sm_50`. Łamana wiadomość i klucz:
+```
+Plaintext: 00000000000100100011010001010110011110001001101010111100110111101111
+Key:       0000000000000000000000000000000000000110111111101111111011111110
+```
+Klucz ma prefiks składający się z 37 zer.
 
 ```
 Starting GPU DES cracking for 37 known leading zeros...

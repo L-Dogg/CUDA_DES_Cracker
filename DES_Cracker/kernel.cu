@@ -7,7 +7,7 @@
 #define FIRSTBIT	0x8000000000000000
 #define BLOCK_SIZE	1024
 #define BLOCKS		2048
-#define KNOWN_ZEROS	26
+#define KNOWN_ZEROS	37
 #define MSGLEN		1
 
 __device__ int work = 1;
@@ -244,6 +244,9 @@ __constant__ int d_Pbox[32] = {
 	19, 13, 30,  6, 22, 11,  4, 25
 };
 
+/*
+ * Generates 16 keys (saved in generating order when encrypting or reverse order when decrypting) and saves them into keys[] array
+ */
 __device__ __host__ void generate_keys(uint64_t basekey, bool reverse, const int PC1[], const int PC2[], const int Rotations[], uint64_t keys[])
 {
 	uint64_t first = 0;
@@ -300,6 +303,9 @@ __device__ __host__ void generate_keys(uint64_t basekey, bool reverse, const int
 	}
 }
 
+/*
+ * Prints all v bits from start to end given by arguments
+ */
 __device__ __host__ void printbits(uint64_t v, int start = 0, int end = 64)
 {
 	for (int ii = start; ii < end; ii++)
@@ -312,6 +318,9 @@ __device__ __host__ void printbits(uint64_t v, int start = 0, int end = 64)
 	printf("\n");
 }
 
+/*
+ * Permutates block using initial permutation matrix or final permutation matrix (determined by the second argument)
+ */
 __device__ __host__ uint64_t permutate_block(uint64_t block, bool initial, const int InitialPermutation[], const int FinalPermutation[])
 {
 	uint64_t permutation = 0;
@@ -329,6 +338,9 @@ __device__ __host__ uint64_t permutate_block(uint64_t block, bool initial, const
 	return permutation;
 }
 
+/*
+ * Expands block using Expansion matrix given by the argument
+ */
 __device__ __host__ uint64_t expand(uint64_t val, const int DesExpansion[])
 {
 	uint64_t res = 0;
@@ -356,6 +368,9 @@ __device__ __host__ uint64_t calculate_sboxes(uint64_t val, const int DesSbox[8]
 	return ret;
 }
 
+/*
+ * Calculates block encryption/decryption
+ */
 __device__ __host__ uint64_t jechanka(uint64_t permutated, uint64_t keys[], const int PC1[], const int Rotations[], const int PC2[], 
 									  const int InitialPermutation[], const int FinalPermutation[], const int DesExpansion[], 
 									  const int Sbox[8][4][16], const int Pbox[])
@@ -381,6 +396,9 @@ __device__ __host__ uint64_t jechanka(uint64_t permutated, uint64_t keys[], cons
 	return permutate_block(r[16] + (l[16] >> 32), false, InitialPermutation, FinalPermutation);
 }
 
+/*
+ * Main DES function - decrypts or encrypts whole message (length given by MSGLEN constant)
+ */
 __device__ __host__ void DES(uint64_t encryptedMessage[], uint64_t decryptedMessage[], uint64_t key, const int PC1[], const int Rotations[],
 							 const int PC2[], const int InitialPermutation[], const int FinalPermutation[], const int DesExpansion[],
 							 const int Sbox[8][4][16], const int Pbox[], bool encrypt)
@@ -435,6 +453,9 @@ __global__ void worker_thread(const uint64_t message[], uint64_t encrypted[], ui
 	}
 }
 
+/*
+ * Decrypts message using brute-force method and CUDA
+ */
 cudaError_t CudaDES(uint64_t plaintext[], uint64_t encrypted[], uint64_t decrypted[], uint64_t key)
 {
 	cudaError_t cudaStatus;
@@ -506,12 +527,18 @@ Error:
 	return cudaStatus;
 }
 
+/*
+ * Prints message in binary format
+ */
 void printmsg(uint64_t msg[])
 {
 	for (int i = 0; i < MSGLEN; i++)
 		printbits(msg[i]);
 }
 
+/*
+ * Compares original message with message decrypted with CUDA/CPU
+ */
 bool proper_decipher(uint64_t msg[], uint64_t decrypted[])
 {
 	for (int i = 0; i < MSGLEN; i++)
@@ -522,6 +549,45 @@ bool proper_decipher(uint64_t msg[], uint64_t decrypted[])
 		}
 	}
 	return true;
+}
+
+void cpuDES(uint64_t plaintext[], uint64_t encrypted[], uint64_t decrypted[], uint64_t key, int known_zeros)
+{
+	int cpu_work = 1;
+	for (uint64_t threadId = 0; threadId < (uint64_t)2 << 21 && cpu_work == 1; threadId++)
+	{
+		uint64_t mask = 0b0000000000000000000000000000000000000000000000000000000001111111;
+		uint64_t suffix = ((threadId & (mask << 14)) << 3) | ((threadId & (mask << 7)) << 2) | ((threadId & mask) << 1);
+		uint64_t current_key = 0;
+		uint64_t max = (uint64_t)1 << (35 - (known_zeros - known_zeros / 8));
+		uint64_t current_message[MSGLEN];
+		bool go;
+
+		for (uint64_t i = 0; i < max && cpu_work == 1; i++)
+		{
+			current_key = (((i & (mask << 28)) << 5) | (((i & (mask << 21)) << 4) | ((i & (mask << 14)) << 3) | ((i & (mask << 7)) << 2) | ((i & mask) << 1)) << 24) | suffix;
+			DES(encrypted, current_message, current_key, d_PC1, d_Rotations, d_PC2, d_InitialPermutation, d_FinalPermutation, d_DesExpansion, d_DesSbox, d_Pbox, false);
+
+			go = true;
+			for (int j = 0; j < MSGLEN; j++)
+			{
+				if (current_message[j] != plaintext[j])
+				{
+					go = false;
+					break;
+				}
+			}
+
+			if (go)
+			{
+				for (int j = 0; j < MSGLEN; j++)
+				{
+					decrypted[j] = current_message[j];
+				}
+				cpu_work = 0;
+			}
+		}
+	}
 }
 
 int main()
@@ -539,25 +605,45 @@ int main()
 	printf("Encrypted:\n");
 	printmsg(encrypted);
 
-	clock_t begin = clock();
-	printf("Starting GPU DES cracking for %d known leading zeros...\n", KNOWN_ZEROS);
-	cudaError_t cudaStatus = CudaDES(msg, encrypted, decrypted, key);
-	clock_t end = clock();
-	double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
-	printf("Finished GPU DES cracking for known leading zeros count = %d.\nTime elapsed: %fs.\n", KNOWN_ZEROS, elapsed_secs);
-	if (cudaStatus != cudaSuccess)
-	{
-		printf("Cos sie, cos sie popsulo...\n");
-	}
-	else
-	{
-		printf("Decrypted:\n");
-		printmsg(decrypted);
-		success = proper_decipher(msg, decrypted);
-		printf(success ? "SUCCESS\n" : "FAILURE\n");
-	}
+	clock_t begin, end;
+	double elapsed_secs;
+
+/* --------------------------------------- CUDA ----------------------------------------------------- */
+
+	//begin = clock();
+	//printf("Starting GPU DES cracking for %d known leading zeros...\n", KNOWN_ZEROS);
+	//cudaError_t cudaStatus = CudaDES(msg, encrypted, decrypted, key);
+	//end = clock();
+	//elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+	//printf("Finished GPU DES cracking for known leading zeros count = %d.\nTime elapsed: %fs.\n", KNOWN_ZEROS, elapsed_secs);
+	//if (cudaStatus != cudaSuccess)
+	//{
+	//	printf("Cos sie, cos sie popsulo...\n");
+	//}
+	//else
+	//{
+	//	printf("Decrypted:\n");
+	//	printmsg(decrypted);
+	//	success = proper_decipher(msg, decrypted);
+	//	printf(success ? "SUCCESS\n" : "FAILURE\n");
+	//}
+
+/* --------------------------------------- CPU ----------------------------------------------------- */
 	
+	begin = clock();
+	printf("Starting CPU DES cracking for %d known leading zeros...\n", KNOWN_ZEROS);
+	cpuDES(msg, encrypted, decrypted, key, KNOWN_ZEROS);
+	end = clock();
+	elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+	printf("Finished CPU DES cracking for known leading zeros count = %d.\nTime elapsed: %fs.\n", KNOWN_ZEROS, elapsed_secs);
 	
+	printf("Decrypted:\n");
+	printmsg(decrypted);
+	success = proper_decipher(msg, decrypted);
+	printf(success ? "SUCCESS\n" : "FAILURE\n");
+	
+/* --------------------------------------- DEBUG ----------------------------------------------------- */
+
 	DES(encrypted, decrypted, key, PC1, Rotations, PC2, InitialPermutation, FinalPermutation, DesExpansion, DesSbox, Pbox, false);
 	printf("Decrypted with proper key:\n");
 	printmsg(decrypted);
