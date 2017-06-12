@@ -58,6 +58,7 @@ Plaintext: 00000000000100100011010001010110011110001001101010111100110111101111
 Key:       0000000000000000000000000000000000000110111111101111111011111110
 ```
 Klucz ma prefiks składający się z 37 zer.
+Niestety nie udało się porownać wersji z obliczeniami na CPU, ponieważ już dla `KNOWN_ZEROS=37` obliczenia trwały ponad 3 minuty (dla Intel Core i5-4590 i powyższej pary wiadomość-klucz dokładnie 209.049000s).
 
 ```
 Starting GPU DES cracking for 37 known leading zeros...
