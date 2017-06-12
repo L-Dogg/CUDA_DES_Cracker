@@ -566,7 +566,7 @@ void cpuDES(uint64_t plaintext[], uint64_t encrypted[], uint64_t decrypted[], ui
 		for (uint64_t i = 0; i < max && cpu_work == 1; i++)
 		{
 			current_key = (((i & (mask << 28)) << 5) | (((i & (mask << 21)) << 4) | ((i & (mask << 14)) << 3) | ((i & (mask << 7)) << 2) | ((i & mask) << 1)) << 24) | suffix;
-			DES(encrypted, current_message, current_key, PC1, Rotations, d_PC2, InitialPermutation, FinalPermutation, DesExpansion, DesSbox, Pbox, false);
+			DES(encrypted, current_message, current_key, PC1, Rotations, PC2, InitialPermutation, FinalPermutation, DesExpansion, DesSbox, Pbox, false);
 
 			go = true;
 			for (int j = 0; j < MSGLEN; j++)
@@ -594,7 +594,7 @@ void cpuDES(uint64_t plaintext[], uint64_t encrypted[], uint64_t decrypted[], ui
 
 int main()
 {
-	uint64_t key = 0b0000000000000000000000000000000000000110111111101111111011111110;
+	uint64_t key = 2;
 	uint64_t msg[1] = { 0b00000000000100100011010001010110011110001001101010111100110111101111 };
 	uint64_t decrypted[1];
 	uint64_t encrypted[1];
