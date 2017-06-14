@@ -7,7 +7,7 @@
 #define FIRSTBIT	0x8000000000000000
 #define BLOCK_SIZE	1024
 #define BLOCKS		2048
-#define KNOWN_ZEROS	37
+#define KNOWN_ZEROS	36
 #define MSGLEN		1
 
 __device__ int work = 1;
@@ -592,7 +592,7 @@ void cpuDES(uint64_t plaintext[], uint64_t encrypted[], uint64_t decrypted[], ui
 
 int main()
 {
-	uint64_t key = 0b0000000000000000000000000000000000000110111111101111111011111110;
+	uint64_t key = 0b0000000000000000000000000000000000001111111111111111111111111111;
 	uint64_t msg[1] = { 0b00000000000100100011010001010110011110001001101010111100110111101111 };
 	uint64_t decrypted[1];
 	uint64_t encrypted[1];
