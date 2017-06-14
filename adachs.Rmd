@@ -28,7 +28,7 @@ Cały program wykorzystuje typ danych `uint64_t`. Wykorzystanie przesunięć bit
 
 Zdefiniowana stała `KNOWN_ZEROS` informuje jak długi zerowy prefiks klucza jest znany. Globalna zmienna `__device__ int work = 1;` służy do synchronizacji między wątkami - w przypadku, gdy któryś z nich odnajdzie poprawny klucz, obliczenia wszystkich wątków są przerywane dzięki zmienie wartości flagi `work` na 0.
 
-Program wykorzystuje $2^{21}$ wątków - id wątku daje nam 21 bitów znaczących i 3 bity parzystości, które tworzą sufiks klucza. Pozostałe bity uzupełniane są przez wątek w pętli for - bitów tych jest $64-24-KNOWN\_ZEROS$. Nie wyznaczamy wszystkich bitów, gdyż co ósmy jest bitem parzystości i nie jest bezpośrednio wykorzystywany w obliczeniach. w Każdej iteracji pętli dokonywane jest sprawdzenie zdeszyfrowanej wiadomości z wiadomością oryginalną (przyjąłem za oryginalną wiadomość 1 blok o długości 64 bitów).
+Program wykorzystuje $2^{21}$ wątków - id wątku daje nam 21 bitów znaczących i 3 bity parzystości, które tworzą sufiks klucza. Pozostałe bity uzupełniane są przez wątek w pętli for - bitów tych jest $64-24-KNOWN\_ZEROS$. Nie wyznaczamy wszystkich bitów, gdyż co ósmy jest bitem parzystości i nie jest bezpośrednio wykorzystywany w obliczeniach. W każdej iteracji pętli dokonywane jest sprawdzenie zdeszyfrowanej wiadomości z wiadomością oryginalną (przyjąłem za oryginalną wiadomość 1 blok o długości 64 bitów).
 
 # Wyjście programu
 
@@ -141,16 +141,30 @@ Time elapsed: 1017.723000s.
 library(plotly)
 x <- (37:25)
 trace_0 <- c(0.859000, 1.403000, 2.389000, 4.405000, 8.418000, 16.401000, 16.404000, 32.330000, 64.139000, 127.767000, 254.834000, 509.067000, 1017.723000)
+trace_1 = log(trace_0, 2)
+
 data <- data.frame(x, trace_0)
+
+ay <- list(
+  tickfont = list(color = "green"),
+  overlaying = "y",
+  side = "right",
+  title = "Log(czas)"
+) 
+
 p <- config(plot_ly() %>%
   add_trace(x = ~x, y = ~trace_0, name = "Czas [s]", mode = 'lines+markers', line = list(width = 0.45,dash='dot')) %>%
+    add_trace(x = ~x, y = ~trace_1, name = "Zlogarytmowany czas", mode = 'lines+markers', line = list(width = 0.45,dash='dot'), yaxis="y2") %>%
   layout(
     title = "Czas łamania szyfru DES w zależności od długości znanego prefiksu",
     xaxis = list(title="KNOWN_ZEROS - długość zerowego prefiksu"),
     yaxis = list(title="Czas[s]"),
+    yaxis2 = ay,
+    legend = list(x = 0.7, y = 0.9),
     alignt = "center"
   ), displayModeBar=FALSE)
 p
 ```
+(Gdyby wykres się nie wyświetlał, to proszę spróbować w innej przeglądarce/odblokować javascript. Można klikać na legendę, żeby wyłączyć wybrany wykres.)
 
-Wyniki przedstawione na wykresie są zgodne z przewidywaniami teoretycznymi - zależność jest wykładnicza.
+Wyniki przedstawione na wykresie są zgodne z przewidywaniami teoretycznymi - zależność jest wykładnicza. Widoczny "schodek" to efekt nieużywania konkretnego bitu w obliczeniach - jest to bit parzystości.
